@@ -9,8 +9,13 @@ services:
             - DB_NAME=BTC_DB
             - SOURCES=btc1.trezor.io,btc2.trezor.io
             - CHUNK_SIZE=100
+            - tcpPort=10001
+            - wsPort=10002
         volumes:
             - ./BTC:/usr/src/app/dist/feeder
+        depends_on:
+            - "websocket"
+            - "webrtc"
 
     feeder_eth:
         image: feeder:latest
@@ -21,8 +26,13 @@ services:
             - DB_NAME=ETH_DB
             - SOURCES=eth1.trezor.io,eth2.trezor.io
             - CHUNK_SIZE=100
+            - tcpPort=11001
+            - wsPort=11002
         volumes:
             - ./ETH:/usr/src/app/dist/feeder
+        depends_on:
+            - "websocket"
+            - "webrtc"
 
     feeder_dgb:
         image: feeder:latest
@@ -33,8 +43,13 @@ services:
             - DB_NAME=ETH_DB
             - SOURCES=dgb1.trezor.io,dgb2.trezor.io
             - CHUNK_SIZE=100
+            - tcpPort=12001
+            - wsPort=12002
         volumes:
             - ./DGB:/usr/src/app/dist/feeder
+        depends_on:
+            - "websocket"
+            - "webrtc"
 
     feeder_dcr:
         image: feeder:latest
@@ -45,14 +60,20 @@ services:
             - DB_NAME=ETH_DB
             - SOURCES=dcrblockexplorer.com
             - CHUNK_SIZE=100
+            - tcpPort=13001
+            - wsPort=13002
         volumes:
             - ./DCR:/usr/src/app/dist/feeder
+        depends_on:
+            - "websocket"
+            - "webrtc"
 
-    rendezvous:
+    websocket:
         image: libp2p/websocket-star-rendezvous:release
         network_mode: host
+        command: ["/usr/local/bin/dumb-init", "node", "--max-old-space-size=8192", "src/bin.js", "--port=19090"]
 
-    rendezvous:
+    webrtc:
         image: libp2p/js-libp2p-webrtc-star
         network_mode: host
-        command:  [ "node", "src/sig-server/bin.js", "--port=9091"]
+        command: ["node", "src/sig-server/bin.js", "--port=19091"]

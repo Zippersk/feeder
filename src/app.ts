@@ -39,8 +39,9 @@ export async function start() {
                 Swarm: [
                     "/ip4/0.0.0.0/tcp/" + process.env.tcpPort,
                     "/ip4/127.0.0.1/tcp/" + process.env.wsPort + "/ws",
-                    "/ip4/127.0.0.1/tcp/9090/ws/p2p-websocket-star",
-                    "/ip4/127.0.0.1/tcp/9091/ws/p2p-webrtc-star",
+                    "/ip4/127.0.0.1/tcp/19090/ws/p2p-websocket-star",
+                    "/ip4/127.0.0.1/tcp/19091/ws/p2p-webrtc-star",
+                    "/dns4/host.docker.internal/19090/ws/p2p-websocket-star",
                 ],
             },
         },
