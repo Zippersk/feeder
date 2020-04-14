@@ -79,8 +79,15 @@ export async function start() {
 
         let tasks: Promise<void>[] = [];
         while (blockHeight <= MAX_BLOCK_HEIGHT) {
-            const block = ((await blockbook.getBlock(blockHeight)) as unknown) as BlockbookBlock;
-
+            let block = null;
+            while (!block) {
+                try {
+                    block = ((await blockbook.getBlock(blockHeight)) as unknown) as BlockbookBlock;
+                } catch (e) {
+                    console.log("error while requesting block " + blockHeight + ", but i will try again!");
+                    await delay(5000);
+                }
+            }
             if (block.txs) {
                 for (const tx of block.txs) {
                     tasks.push(Transaction.fromBlockbook(tx).save());
