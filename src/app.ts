@@ -102,7 +102,6 @@ export async function start() {
                 await storage.setItem("blockHeight", blockHeight);
                 console.log("finished chunk");
             }
-            await delay(10000);
         }
 
         while (true) {
