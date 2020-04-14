@@ -40,7 +40,7 @@ services:
             context: ./
         network_mode: host
         environment:
-            - DB_NAME=ETH_DB
+            - DB_NAME=DGB_DB
             - SOURCES=dgb1.trezor.io,dgb2.trezor.io
             - CHUNK_SIZE=100
             - tcpPort=12001
@@ -57,7 +57,7 @@ services:
             context: ./
         network_mode: host
         environment:
-            - DB_NAME=ETH_DB
+            - DB_NAME=DCR_DB
             - SOURCES=dcrblockexplorer.com
             - CHUNK_SIZE=100
             - tcpPort=13001

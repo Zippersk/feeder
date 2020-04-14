@@ -81,8 +81,10 @@ export async function start() {
         while (blockHeight <= MAX_BLOCK_HEIGHT) {
             const block = ((await blockbook.getBlock(blockHeight)) as unknown) as BlockbookBlock;
 
-            for (const tx of block.txs) {
-                tasks.push(Transaction.fromBlockbook(tx).save());
+            if (block.txs) {
+                for (const tx of block.txs) {
+                    tasks.push(Transaction.fromBlockbook(tx).save());
+                }
             }
 
             tasks.push(Block.fromBlockbook(block).save());
