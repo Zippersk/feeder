@@ -3,7 +3,7 @@ FROM node:12-alpine
 WORKDIR /usr/src/app
 
 
-COPY . .
+COPY *.json ./
 
 RUN npm install -g typescript
 RUN apk add \
@@ -11,6 +11,9 @@ RUN apk add \
     make \
     g++ \
     git
-RUN npm install && npm run build
+RUN npm install
+COPY . .
+RUN npm run build
+
 WORKDIR /usr/src/app/dist
 CMD [ "node", "src/server.js" ]

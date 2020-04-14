@@ -11,16 +11,18 @@ import IPFSconnector from "explorer-core/src/ipfs/IPFSConnector";
 import Database from "explorer-core/src/database/DAL/database/databaseStore";
 import { Blockbook } from "blockbook-client";
 import InputsOutputs from "explorer-core/src/models/InputsOutputs";
+import defaultLibp2p from "ipfs/src/core/runtime/libp2p-nodejs";
+import Protector from "libp2p-pnet";
+import storage from "node-persist";
 
 const blockbook = new Blockbook({
-    nodes: ["btc1.trezor.io", "btc2.trezor.io"],
+    nodes: process.env.SOURCES.split(","),
 });
 
 const dbName = process.env.DB_NAME;
 const chunkSize = parseInt(process.env.CHUNK_SIZE) || 10;
 
-const MAX_BLOCK_HEIGHT =
-    parseInt(process.env.MAX_BLOCK_HEIGHT) || Infinity;
+const MAX_BLOCK_HEIGHT = parseInt(process.env.MAX_BLOCK_HEIGHT) || Infinity;
 
 console.log({
     dbName,
@@ -28,58 +30,79 @@ console.log({
 });
 
 export async function start() {
-    IPFSconnector.setConfig(await randomPortsConfigAsync());
-    const id = (
-        await (await IPFSconnector.getInstanceAsync()).node.id()
-    ).id;
+    await storage.init();
+
+    IPFSconnector.setConfig({
+        repo: "feeder",
+        config: {
+            Addresses: {
+                Swarm: [
+                    "/ip4/0.0.0.0/tcp/" + process.env.tcpPort,
+                    "/ip4/127.0.0.1/tcp/" + process.env.wsPort + "/ws",
+                    "/ip4/127.0.0.1/tcp/9090/ws/p2p-websocket-star",
+                    "/ip4/127.0.0.1/tcp/9091/ws/p2p-webrtc-star",
+                ],
+            },
+        },
+        libp2p: {
+            modules: {
+                connProtector: new Protector(`/key/swarm/psk/1.0.0/
+/base16/
+30734f1804abb36a803d0e9f1a31ffe5851b6df1445bf23f96fd3fe8fbc9e793`),
+            },
+            config: {
+                pubsub: {
+                    emitSelf: false,
+                },
+            },
+        },
+    });
+    const id = (await (await IPFSconnector.getInstanceAsync()).node.id()).id;
     const identity = await IdentityProvider.createIdentity({
         id,
     });
     Database.connect(dbName, identity);
-    await Database.use(dbName).execute(
-        async (database: DatabaseInstance) => {
-            Database.selectedDatabase.getOrCreateTableByEntity(
-                new InputsOutputs(),
-            );
-            Database.selectedDatabase.getOrCreateTableByEntity(
-                new Transaction(),
-            );
-            Database.selectedDatabase.getOrCreateTableByEntity(
-                new Block(),
-            );
 
-            let blockHeight = 0;
-            let tasks: Promise<void>[] = [];
-            while (blockHeight <= MAX_BLOCK_HEIGHT) {
-                const block = ((await blockbook.getBlock(
-                    blockHeight,
-                )) as unknown) as BlockbookBlock;
+    await Database.use(dbName).execute(async (database: DatabaseInstance) => {
+        let blockHeight = 0;
+        Database.selectedDatabase.getOrCreateTableByEntity(new InputsOutputs());
+        Database.selectedDatabase.getOrCreateTableByEntity(new Transaction());
+        Database.selectedDatabase.getOrCreateTableByEntity(new Block());
 
-                for (const tx of block.txs) {
-                    tasks.push(Transaction.fromBlockbook(tx).save());
-                }
+        const oldDBRoot = await storage.getItem("DBroot");
+        if (oldDBRoot) {
+            Database.selectedDatabase.fromMultihash(oldDBRoot);
+            blockHeight = await storage.getItem("blockHeight");
+        }
 
-                tasks.push(Block.fromBlockbook(block).save());
-                blockHeight++;
+        let tasks: Promise<void>[] = [];
+        while (blockHeight <= MAX_BLOCK_HEIGHT) {
+            const block = ((await blockbook.getBlock(blockHeight)) as unknown) as BlockbookBlock;
 
-                if (tasks.length >= chunkSize) {
-                    await Promise.all(tasks);
-                    tasks = [];
-                    console.log("finished chunk");
-                }
+            for (const tx of block.txs) {
+                tasks.push(Transaction.fromBlockbook(tx).save());
             }
 
-            while (true) {
-                await database.pubSubListener.publish(
-                    new PubSubMessage({
-                        type: PubSubMessageType.PublishVersion,
-                        value: (
-                            await database.log.toMultihash()
-                        ).toString(),
-                    }),
-                );
-                await delay(2000);
+            tasks.push(Block.fromBlockbook(block).save());
+            blockHeight++;
+
+            if (tasks.length >= chunkSize) {
+                await Promise.all(tasks);
+                tasks = [];
+                await storage.setItem("DBroot", Database.selectedDatabase.dbHash.toString());
+                await storage.setItem("blockHeight", blockHeight);
+                console.log("finished chunk");
             }
-        },
-    );
+        }
+
+        while (true) {
+            await database.pubSubListener.publish(
+                new PubSubMessage({
+                    type: PubSubMessageType.PublishVersion,
+                    value: (await database.log.toMultihash()).toString(),
+                }),
+            );
+            await delay(2000);
+        }
+    });
 }

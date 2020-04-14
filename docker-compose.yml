@@ -1,0 +1,58 @@
+version: "3.7"
+services:
+    feeder_btc:
+        image: feeder:latest
+        build:
+            context: ./
+        network_mode: host
+        environment:
+            - DB_NAME=BTC_DB
+            - SOURCES=btc1.trezor.io,btc2.trezor.io
+            - CHUNK_SIZE=100
+        volumes:
+            - ./BTC:/usr/src/app/dist/feeder
+
+    feeder_eth:
+        image: feeder:latest
+        build:
+            context: ./
+        network_mode: host
+        environment:
+            - DB_NAME=ETH_DB
+            - SOURCES=eth1.trezor.io,eth2.trezor.io
+            - CHUNK_SIZE=100
+        volumes:
+            - ./ETH:/usr/src/app/dist/feeder
+
+    feeder_dgb:
+        image: feeder:latest
+        build:
+            context: ./
+        network_mode: host
+        environment:
+            - DB_NAME=ETH_DB
+            - SOURCES=dgb1.trezor.io,dgb2.trezor.io
+            - CHUNK_SIZE=100
+        volumes:
+            - ./DGB:/usr/src/app/dist/feeder
+
+    feeder_dcr:
+        image: feeder:latest
+        build:
+            context: ./
+        network_mode: host
+        environment:
+            - DB_NAME=ETH_DB
+            - SOURCES=dcrblockexplorer.com
+            - CHUNK_SIZE=100
+        volumes:
+            - ./DCR:/usr/src/app/dist/feeder
+
+    rendezvous:
+        image: libp2p/websocket-star-rendezvous:release
+        network_mode: host
+
+    rendezvous:
+        image: libp2p/js-libp2p-webrtc-star
+        network_mode: host
+        command:  [ "node", "src/sig-server/bin.js", "--port=9091"]

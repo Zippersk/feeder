@@ -39,3 +39,4 @@ dist/**/*
 yarn.lock
 
 orbitdb
+dist
