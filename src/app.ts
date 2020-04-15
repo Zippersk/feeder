@@ -1,5 +1,4 @@
 import IdentityProvider from "orbit-db-identity-provider";
-import { randomPortsConfigAsync } from "explorer-core/src/ipfs/ipfsDefaultConfig";
 import logger from "explorer-core/src/logger";
 import Transaction from "explorer-core/src/models/Transaction";
 import Block from "explorer-core/src/models/Block";
@@ -10,8 +9,6 @@ import { delay } from "explorer-core/src/common";
 import IPFSconnector from "explorer-core/src/ipfs/IPFSConnector";
 import Database from "explorer-core/src/database/DAL/database/databaseStore";
 import { Blockbook } from "blockbook-client";
-import InputsOutputs from "explorer-core/src/models/InputsOutputs";
-import defaultLibp2p from "ipfs/src/core/runtime/libp2p-nodejs";
 import Protector from "libp2p-pnet";
 import storage from "node-persist";
 
@@ -65,7 +62,6 @@ export async function start() {
 
     await Database.use(dbName).execute(async (database: DatabaseInstance) => {
         let blockHeight = 0;
-        Database.selectedDatabase.getOrCreateTableByEntity(new InputsOutputs());
         Database.selectedDatabase.getOrCreateTableByEntity(new Transaction());
         Database.selectedDatabase.getOrCreateTableByEntity(new Block());
 
@@ -78,12 +74,23 @@ export async function start() {
         let tasks: Promise<void>[] = [];
         while (blockHeight <= MAX_BLOCK_HEIGHT) {
             let block = null;
+            let tryCount = 0;
             while (!block) {
                 try {
                     block = ((await blockbook.getBlock(blockHeight)) as unknown) as BlockbookBlock;
+                    tryCount = 0;
                 } catch (e) {
+                    tryCount++;
                     console.log("error while requesting block " + blockHeight + ", but i will try again!");
-                    await delay(5000);
+                    for (let i = 0; i < tryCount; i++) {
+                        await database.pubSubListener.publish(
+                            new PubSubMessage({
+                                type: PubSubMessageType.PublishVersion,
+                                value: (await database.log.toMultihash()).toString(),
+                            }),
+                        );
+                        await delay(2000);
+                    }
                 }
             }
             if (block.txs) {
