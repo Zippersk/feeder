@@ -36,7 +36,7 @@
         "dotenv": "^8.2.0",
         "electron-webrtc": "^0.3.0",
         "errorhandler": "^1.5.1",
-        "explorer-core": "^0.3.17",
+        "explorer-core": "^0.3.18",
         "express": "^4.17.1",
         "express-flash": "0.0.2",
         "express-session": "^1.16.2",
